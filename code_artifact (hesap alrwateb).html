@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة الرواتب والتأمينات الاجتماعية المتقدمة</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <!-- PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .salary-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+        }
+        .salary-fields-grid > div,
+        .salary-fields-grid input {
+            min-width: 0;
+        }
+        @media (min-width: 768px) {
+            .salary-fields-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1200px) {
+            .salary-fields-grid {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+            }
+        }
+        .settings-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 60;
+        }
+        .settings-sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 55;
+            width: min(360px, 92vw);
+            height: 100vh;
+            overflow-y: auto;
+            transform: translateX(105%);
+            transition: transform .25s ease;
+            box-shadow: -12px 0 30px rgba(15, 23, 42, .22);
+        }
+        .settings-sidebar.open { transform: translateX(0); }
+        .settings-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            background: rgba(15, 23, 42, .42);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s ease;
+        }
+        .settings-backdrop.open { opacity: 1; pointer-events: auto; }
+        .settings-color-input { width: 42px; height: 34px; padding: 2px; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 py-8 px-4 sm:px-6">
+
+    <button id="settingsToggle" type="button" aria-label="فتح إعدادات التقرير" class="settings-toggle w-11 h-11 rounded-xl bg-white text-indigo-700 shadow-xl border border-indigo-100 hover:bg-indigo-50 transition">
+        <i class="fa-solid fa-bars text-lg"></i>
+    </button>
+    <div id="settingsBackdrop" class="settings-backdrop"></div>
+    <aside id="settingsSidebar" class="settings-sidebar bg-white p-5" aria-label="إعدادات التقرير">
+        <div class="flex items-center justify-between border-b pb-4 mb-5">
+            <div>
+                <h2 class="text-lg font-black text-slate-800">إعدادات التقرير</h2>
+                <p class="text-xs text-slate-500 mt-1">تحرير الهوية والمظهر قبل التوليد</p>
+            </div>
+            <button id="settingsClose" type="button" aria-label="إغلاق الإعدادات" class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-4">
+            <label class="block text-sm font-bold text-slate-700">اسم المنشأة<input id="companyName" type="text" value="منشأتك التجارية" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></label>
+            <label class="block text-sm font-bold text-slate-700">وصف المنشأة<input id="companySubtitle" type="text" value="إدارة الموارد البشرية والرواتب" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></label>
+            <label class="block text-sm font-bold text-slate-700">الهوية / السجل التجاري<input id="companyId" type="text" value="" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></label>
+            <label class="block text-sm font-bold text-slate-700">عنوان التقرير<input id="reportTitle" type="text" value="تقرير حساب الرواتب والتأمينات الاجتماعية" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"></label>
+            <label class="block text-sm font-bold text-slate-700">الشعار<input id="companyLogo" type="file" accept="image/png,image/jpeg" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"></label>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="flex items-center justify-between gap-2 text-sm font-bold text-slate-700">لون الهوية<input id="brandColor" type="color" value="#b68b2c" class="settings-color-input rounded-lg border border-slate-200"></label>
+                <label class="flex items-center justify-between gap-2 text-sm font-bold text-slate-700">لون الجدول<input id="tableColor" type="color" value="#e8eef5" class="settings-color-input rounded-lg border border-slate-200"></label>
+            </div>
+            <label class="flex items-center gap-2 text-sm font-bold text-slate-700"><input id="showCompanyInfo" type="checkbox" checked class="h-4 w-4 accent-indigo-600"> إظهار بيانات المنشأة في التقرير</label>
+            <button id="saveSettings" type="button" class="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"><i class="fa-solid fa-check ml-1"></i> تطبيق إعدادات التقرير</button>
+        </div>
+    </aside>
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center bg-indigo-600/30 text-indigo-300 p-3 rounded-2xl mb-3 border border-indigo-500/30">
+                <i class="fa-solid fa-calculator text-3xl"></i>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">نظام حاسبة الرواتب والتأمينات</h1>
+            <p class="text-slate-300 mt-2 text-sm sm:text-base">توزيع الراتب الإجمالي تلقائياً واحتساب التأمينات الاجتماعية والخصومات بدقة</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Input Form Section -->
+            <div class="lg:col-span-8 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-100">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i> التفاصيل المالية والراتب
+                    </h2>
+                    <!-- Toggle New System -->
+                    <label class="flex items-center cursor-pointer gap-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                        <span class="text-xs font-bold text-indigo-900">تطبيق نظام التأمينات الجديد</span>
+                        <input type="checkbox" id="newSystemToggle" onchange="calculateSalary()" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    </label>
+                </div>
+
+                <form id="salaryForm" class="space-y-4">
+                    <!-- Employee Import -->
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                        <label class="block text-sm font-bold text-amber-800 mb-2">اسم الموظف</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select id="employeeSelect" onchange="selectEmployee(event)" class="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl outline-none font-semibold text-sm">
+                                <option value="">استورد ملف Excel أولًا</option>
+                            </select>
+                            <input type="file" id="employeeExcel" accept=".xlsx,.xls" onchange="importEmployees(event)"
+                                class="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-sm cursor-pointer file:mr-2 file:px-3 file:py-1.5 file:bg-amber-600 file:text-white file:border-0 file:rounded-lg file:cursor-pointer">
+                        </div>
+                        <p id="employeeStatus" class="text-xs text-amber-700 mt-2"></p>
+                        <div id="employeeColumns" class="hidden grid grid-cols-2 gap-2 mt-3 text-xs"></div>
+                    </div>
+
+                    <!-- Quick Total Salary Input & Auto Distribute (Inspired by user's screenshot) -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الراتب الإجمالي (توزيع تلقائي)</label>
+                        <div class="relative">
+                            <input type="number" id="quickTotalSalary" value="6500" step="any" oninput="distributeTotalSalary()"
+                                class="w-full px-4 py-3.5 bg-white border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl tracking-wide">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 font-bold">ريال</span>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Salaries Row (Inspired by user's second screenshot) -->
+                    <div class="salary-fields-grid">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">الراتب الأساسي</label>
+                            <input type="number" id="basicSalary" value="3200" step="any" oninput="updateTransportAllowance(); calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">بدل السكن</label>
+                            <input type="number" id="housingAllowance" value="800" step="any" oninput="updateTransportAllowance(); calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">بدل النقل</label>
+                            <input type="number" id="transportAllowance" value="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">البدلات الأخرى</label>
+                            <input type="number" id="otherAllowances" value="2500" step="any" oninput="updateTransportAllowance(); calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">العمولات</label>
+                            <input type="number" id="commissions" value="0" step="any" oninput="updateTransportAllowance(); calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-rose-600 mb-1">خصم التأمينات (GOSI)</label>
+                            <input type="text" id="insuranceDisplay" readonly
+                                class="w-full px-3 py-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl outline-none font-bold text-sm text-center">
+                        </div>
+                    </div>
+
+                    <!-- Days Worked and Total Month Days -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الدوام بالشهر</label>
+                            <input type="number" id="workedDays" value="30" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">إجمالي أيام الشهر المالي</label>
+                            <input type="number" id="totalDays" value="30" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Deductions: Loans and Absences -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">السلفيات / خصومات أخرى (ر.س)</label>
+                            <input type="number" id="loans" value="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الغياب الإضافية</label>
+                            <input type="number" id="absenceDays" value="0" min="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button" onclick="generateReportPdf()" class="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-download"></i> تحميل التقرير بصيغة PDF
+                        </button>
+                        <p id="pdfStatus" class="text-xs text-green-700 mt-2 text-center"></p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Summary Section -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- Main Card -->
+                <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-indigo-500/20">
+                    <h3 class="text-indigo-300 font-semibold text-sm uppercase tracking-wider mb-1">صافي الراتب المستحق</h3>
+                    <div class="text-3xl sm:text-4xl font-black mb-4 flex items-baseline gap-2">
+                        <span id="netSalaryResult">0.00</span> <span class="text-lg font-normal text-indigo-300">ر.س</span>
+                    </div>
+
+                    <div class="space-y-3 pt-4 border-t border-indigo-800/60 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي الراتب الشامل:</span>
+                            <span id="fullGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">الراتب الإجمالي للفترة:</span>
+                            <span id="periodGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي التأمينات (الخصم):</span>
+                            <span id="totalInsurance" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">الخصومات الأخرى (غياب/سلف):</span>
+                            <span id="totalOtherDeductions" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown Box -->
+                <div class="bg-white rounded-3xl shadow-2xl p-6 border border-slate-100">
+                    <h4 class="font-bold text-slate-800 mb-4 text-base flex items-center gap-2 border-b pb-2">
+                        <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i> تفاصيل الاشتراكات والأجر الخاضع
+                    </h4>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">الأجر الخاضع للاشتراك (أساسي + سكن):</span>
+                            <span id="insurableWage" class="font-bold text-slate-800">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">اشتراك التأمينات الاجتماعية (<span id="insuranceRateLabel">10.25</span>%):</span>
+                            <span id="pensionShare" class="font-bold text-indigo-600">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">فرع التعطل عن العمل (0%):</span>
+                            <span id="unemploymentShare" class="font-bold text-indigo-600">0.00 ر.س</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let isManualEdit = false;
+        let employeeRecords = [];
+        let isForeignEmployee = false;
+        let isNonProtectedEmployee = false;
+        let reportLogoDataUrl = '';
+        let settingsPinned = false;
+        let settingsCloseTimer = null;
+
+        function setSettingsOpen(isOpen) {
+            document.getElementById('settingsSidebar').classList.toggle('open', isOpen);
+            document.getElementById('settingsBackdrop').classList.toggle('open', isOpen);
+        }
+
+        function scheduleSettingsClose() {
+            if (settingsPinned) return;
+            clearTimeout(settingsCloseTimer);
+            settingsCloseTimer = setTimeout(() => setSettingsOpen(false), 220);
+        }
+
+        function getReportSettings() {
+            return {
+                companyName: document.getElementById('companyName').value.trim(),
+                companySubtitle: document.getElementById('companySubtitle').value.trim(),
+                companyId: document.getElementById('companyId').value.trim(),
+                reportTitle: document.getElementById('reportTitle').value.trim(),
+                brandColor: document.getElementById('brandColor').value,
+                tableColor: document.getElementById('tableColor').value,
+                showCompanyInfo: document.getElementById('showCompanyInfo').checked,
+                logoDataUrl: reportLogoDataUrl
+            };
+        }
+
+        function escapeReportText(value) {
+            return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+        }
+
+        document.getElementById('settingsToggle').addEventListener('mouseenter', () => {
+            clearTimeout(settingsCloseTimer);
+            setSettingsOpen(true);
+        });
+        document.getElementById('settingsToggle').addEventListener('mouseleave', scheduleSettingsClose);
+        document.getElementById('settingsToggle').addEventListener('click', () => {
+            settingsPinned = !settingsPinned;
+            setSettingsOpen(settingsPinned);
+        });
+        document.getElementById('settingsClose').addEventListener('click', () => {
+            settingsPinned = false;
+            setSettingsOpen(false);
+        });
+        document.getElementById('settingsBackdrop').addEventListener('click', () => {
+            settingsPinned = false;
+            setSettingsOpen(false);
+        });
+        document.getElementById('settingsSidebar').addEventListener('mouseleave', () => {
+            scheduleSettingsClose();
+        });
+        document.getElementById('settingsSidebar').addEventListener('mouseenter', () => clearTimeout(settingsCloseTimer));
+        document.getElementById('saveSettings').addEventListener('click', () => {
+            settingsPinned = false;
+            setSettingsOpen(false);
+        });
+        document.getElementById('companyLogo').addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = loadEvent => { reportLogoDataUrl = loadEvent.target.result; };
+            reader.readAsDataURL(file);
+        });
+
+        function normalizeColumnName(value) {
+            return String(value)
+                .replace(/[\s_\-()]/g, '')
+                .replace(/[أإآٱ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .toLowerCase();
+        }
+
+        function findColumn(headers, aliases) {
+            return headers.findIndex(header => {
+                const normalizedHeader = normalizeColumnName(header);
+                return aliases.some(alias => normalizedHeader.includes(normalizeColumnName(alias)));
+            });
+        }
+
+        function parseImportedNumber(value) {
+            const normalized = String(value ?? '')
+                .replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 1632))
+                .replace(/[۰-۹]/g, digit => String(digit.charCodeAt(0) - 1776))
+                .replace(/[٬,]/g, '')
+                .replace(/٫/g, '.');
+            const numberMatch = normalized.match(/[-+]?\d+(?:\.\d+)?/);
+            const number = numberMatch ? Number(numberMatch[0]) : NaN;
+            return Number.isFinite(number) ? number : null;
+        }
+
+        function setNumericField(id, value) {
+            const number = parseImportedNumber(value);
+            if (number !== null) {
+                document.getElementById(id).value = number;
+            }
+        }
+
+        function isForeignIdentityNumber(value) {
+            const normalized = String(value ?? '')
+                .replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 1632))
+                .replace(/[۰-۹]/g, digit => String(digit.charCodeAt(0) - 1776))
+                .replace(/\s/g, '');
+            return normalized.startsWith('2');
+        }
+
+        function isNonProtectedStatus(value) {
+            const status = String(value ?? '')
+                .replace(/[\s_-]/g, '')
+                .replace(/[أإآٱ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .toLowerCase();
+            return status === 'لا' || status === 'no' || status.includes('غيرحمايه') || status.includes('غيرمحمي') || status.includes('غيرمشمول');
+        }
+
+        function selectEmployee(event) {
+            const record = employeeRecords[Number(event.target.value)];
+            if (!record) {
+                isForeignEmployee = false;
+                isNonProtectedEmployee = false;
+                calculateSalary();
+                return;
+            }
+
+            isForeignEmployee = isForeignIdentityNumber(record.values[record.columns.identity]);
+            isNonProtectedEmployee = isNonProtectedStatus(record.values[record.columns.protection]);
+            setNumericField('quickTotalSalary', record.values[record.columns.gross]);
+            setNumericField('basicSalary', record.values[record.columns.basic]);
+            setNumericField('housingAllowance', record.values[record.columns.housing]);
+            setNumericField('transportAllowance', record.values[record.columns.transport]);
+            setNumericField('otherAllowances', record.values[record.columns.otherAllowances]);
+            setNumericField('commissions', record.values[record.columns.commissions]);
+            setNumericField('workedDays', record.values[record.columns.workedDays]);
+            setNumericField('totalDays', record.values[record.columns.totalDays]);
+            setNumericField('loans', record.values[record.columns.loans]);
+            setNumericField('absenceDays', record.values[record.columns.absenceDays]);
+            calculateSalary();
+
+            const details = document.getElementById('employeeColumns');
+            details.innerHTML = record.headers.map((header, index) => `
+                <div class="bg-white border border-amber-100 rounded-lg px-2 py-1">
+                    <span class="font-bold text-amber-800">${header || `عمود ${index + 1}`}:</span>
+                    <span class="text-slate-700">${record.values[index] || '-'}</span>
+                </div>
+            `).join('');
+            details.classList.remove('hidden');
+        }
+
+        function importEmployees(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                try {
+                    const workbook = XLSX.read(loadEvent.target.result, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                    const headerIndex = rows.findIndex(row => row.some(cell => /اسم|name/i.test(String(cell).trim())));
+                    const headers = headerIndex >= 0
+                        ? rows[headerIndex].map(cell => String(cell).trim())
+                        : rows[0].map((_, index) => `عمود ${index + 1}`);
+                    const nameColumn = headerIndex >= 0
+                        ? rows[headerIndex].findIndex(cell => /اسم|name/i.test(String(cell).trim()))
+                        : 0;
+                    const startIndex = headerIndex >= 0 ? headerIndex + 1 : 0;
+                    const dataRows = rows.slice(startIndex).filter(row => row.some(cell => String(cell).trim()));
+                    const columnAliases = {
+                        gross: ['إجماليالأجر', 'إجماليالراتب', 'الأجرالإجمالي', 'الراتبالإجمالي', 'gross', 'totalsalary'],
+                        basic: ['الراتبالأساسي', 'الاجرالاساسي', 'الأجرالأساسي', 'الاساسي', 'basic', 'basicsalary'],
+                        housing: ['بدلالسكن', 'السكن', 'housing', 'housingallowance'],
+                        transport: ['بدلالنقل', 'بدلالتنقل', 'النقل', 'transport', 'transportallowance'],
+                        otherAllowances: ['البدلاتالأخرى', 'بدلاتأخرى', 'البدلات', 'otherallowances', 'otherallowance'],
+                        commissions: ['العمولات', 'عمولة', 'commission', 'commissions'],
+                        workedDays: ['أيامالدوام', 'أيامالعمل', 'workeddays'],
+                        totalDays: ['إجماليأيامالشهر', 'إجماليالأيام', 'totaldays'],
+                        loans: ['السلفيات', 'خصوماتأخرى', 'loans', 'deductions'],
+                        absenceDays: ['أيامالغياب', 'absencedays'],
+                        identity: ['رقمالهويه', 'رقمالهوية', 'رقمالاقامه', 'رقمالإقامة', 'الهوية', 'الإقامة', 'identity', 'iqama'],
+                        protection: ['حماية', 'الحماية', 'نوعالحماية', 'حالهالحماية', 'الاهليه', 'أهليةالتأمينات', 'التأميناتالاجتماعية', 'status', 'protection']
+                    };
+                    const columnIndexes = Object.fromEntries(Object.entries(columnAliases).map(([key, aliases]) => [key, findColumn(headers, aliases)]));
+                    employeeRecords = dataRows.map(row => ({
+                        headers,
+                        values: row,
+                        columns: columnIndexes,
+                        name: String(row[nameColumn] || '').trim()
+                    })).filter(record => record.name);
+                    const employeeSelect = document.getElementById('employeeSelect');
+
+                    employeeSelect.innerHTML = '<option value="">اختر اسم الموظف</option>';
+                    employeeRecords.forEach((record, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = record.name;
+                        employeeSelect.appendChild(option);
+                    });
+                    document.getElementById('employeeStatus').innerText = employeeRecords.length
+                        ? `✓ تم استيراد ${employeeRecords.length} موظف بجميع الأعمدة`
+                        : '✗ لم يتم العثور على أسماء في الملف';
+                } catch (error) {
+                    document.getElementById('employeeStatus').innerText = '✗ تعذر قراءة ملف Excel';
+                    alert('خطأ في استيراد الموظفين: ' + error.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function updateTransportAllowance() {
+            const total = parseImportedNumber(document.getElementById('quickTotalSalary').value) || 0;
+            const basic = parseImportedNumber(document.getElementById('basicSalary').value) || 0;
+            const housing = parseImportedNumber(document.getElementById('housingAllowance').value) || 0;
+            const otherAllowances = parseImportedNumber(document.getElementById('otherAllowances').value) || 0;
+            const commissions = parseImportedNumber(document.getElementById('commissions').value) || 0;
+            
+            // حساب النقل بعد خصم الأساسي والسكن والبدلات الأخرى من الإجمالي
+            const transport = Math.max(0, total - basic - housing - otherAllowances - commissions);
+            document.getElementById('transportAllowance').value = Math.round(transport * 100) / 100;
+        }
+
+        function distributeTotalSalary() {
+            const total = parseImportedNumber(document.getElementById('quickTotalSalary').value) || 0;
+            if (total <= 0) return;
+
+            // توزيع الإجمالي على حقول الراتب المرتبطة
+            // نسب التوزيع التقريبية من الإجمالي: أساسي ~74.08%، سكن ~18.52%، نقل ~7.4%
+            const basic = Math.round(total * 0.7408 * 10) / 10;
+            const housing = Math.round(total * 0.1852 * 10) / 10;
+            const otherAllowances = parseImportedNumber(document.getElementById('otherAllowances').value) || 0;
+            const commissions = parseImportedNumber(document.getElementById('commissions').value) || 0;
+            const transport = Math.round((total - basic - housing - otherAllowances - commissions) * 100) / 100;
+
+            document.getElementById('basicSalary').value = basic;
+            document.getElementById('housingAllowance').value = housing;
+            document.getElementById('transportAllowance').value = transport > 0 ? transport : 0;
+
+            calculateSalary();
+        }
+
+        function calculateSalary() {
+            const basic = parseImportedNumber(document.getElementById('basicSalary').value) || 0;
+            const housing = parseImportedNumber(document.getElementById('housingAllowance').value) || 0;
+            const transport = parseImportedNumber(document.getElementById('transportAllowance').value) || 0;
+            const otherAllowances = parseImportedNumber(document.getElementById('otherAllowances').value) || 0;
+            const commissions = parseImportedNumber(document.getElementById('commissions').value) || 0;
+            
+            const workedDays = parseImportedNumber(document.getElementById('workedDays').value) || 30;
+            const totalDays = parseImportedNumber(document.getElementById('totalDays').value) || 30;
+            
+            const loans = parseImportedNumber(document.getElementById('loans').value) || 0;
+            const absenceDays = parseImportedNumber(document.getElementById('absenceDays').value) || 0;
+            const useNewSystem = document.getElementById('newSystemToggle').checked;
+
+            // إجمالي الراتب المعلن مستقل عن الأجر الخاضع للتأمينات
+            const enteredGross = parseImportedNumber(document.getElementById('quickTotalSalary').value) || 0;
+            const componentGross = basic + housing + transport + otherAllowances + commissions;
+            const fullGross = enteredGross > 0 ? enteredGross : componentGross;
+
+            // Insurable Wage (Basic + Housing)
+            const insurableWage = basic + housing;
+
+            // Insurance calculation
+            let monthlyPension = 0;
+            let monthlyUnemployment = 0;
+
+            if (isForeignEmployee || isNonProtectedEmployee) {
+                monthlyPension = 0;
+                monthlyUnemployment = 0;
+            } else if (useNewSystem) {
+                // نسبة المعاشات والتأمينات الجديدة = 10.25%
+                monthlyPension = insurableWage * 0.1025;
+                monthlyUnemployment = insurableWage * 0;
+            } else {
+                // النظام القديم = 9.75%
+                monthlyPension = insurableWage * 0.0975;
+                monthlyUnemployment = 0;
+            }
+
+            const monthlyTotalInsurance = monthlyPension + monthlyUnemployment;
+
+            // Update insurance rate label
+            const rateLabel = isForeignEmployee ? '0 للأجنبي' : (isNonProtectedEmployee ? '0 لغير الحماية' : (useNewSystem ? '10.25' : '9.75'));
+            document.getElementById('insuranceRateLabel').innerText = rateLabel;
+
+            // Proration factor
+            const ratio = totalDays > 0 ? (workedDays / totalDays) : 1;
+
+            const periodGross = Number((fullGross * ratio).toFixed(2));
+            const periodInsurance = Number((monthlyTotalInsurance * ratio).toFixed(2));
+
+            // Absence deduction
+            const dailyRate = totalDays > 0 ? (fullGross / totalDays) : 0;
+            const absenceDeduction = absenceDays * dailyRate;
+
+            const totalOtherDeductions = Number((loans + absenceDeduction).toFixed(2));
+            const netSalary = Number((periodGross - periodInsurance - totalOtherDeductions).toFixed(2));
+
+            // Update UI
+            document.getElementById('insuranceDisplay').value = monthlyTotalInsurance.toFixed(2) + ' ر.س';
+            document.getElementById('fullGrossSalary').innerText = fullGross.toFixed(2) + ' ر.س';
+            document.getElementById('periodGrossSalary').innerText = periodGross.toFixed(2) + ' ر.س';
+            document.getElementById('totalInsurance').innerText = periodInsurance.toFixed(2) + ' ر.س';
+            document.getElementById('totalOtherDeductions').innerText = totalOtherDeductions.toFixed(2) + ' ر.س';
+            document.getElementById('netSalaryResult').innerText = netSalary > 0 ? netSalary.toFixed(2) : '0.00';
+
+            document.getElementById('insurableWage').innerText = insurableWage.toFixed(2) + ' ر.س';
+            document.getElementById('pensionShare').innerText = (monthlyPension * ratio).toFixed(2) + ' ر.س';
+            document.getElementById('unemploymentShare').innerText = (monthlyUnemployment * ratio).toFixed(2) + ' ر.س';
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            calculateSalary();
+        };
+
+        function generateReportPdf() {
+            const netSalary = document.getElementById('netSalaryResult').innerText;
+            const basicSalary = document.getElementById('basicSalary').value;
+            const housingAllowance = document.getElementById('housingAllowance').value;
+            const transportAllowance = document.getElementById('transportAllowance').value;
+            const otherAllowances = document.getElementById('otherAllowances').value;
+            const commissions = document.getElementById('commissions').value;
+            const totalInsurance = document.getElementById('totalInsurance').innerText;
+            const fullGrossSalary = document.getElementById('fullGrossSalary').innerText;
+            const periodGrossSalary = document.getElementById('periodGrossSalary').innerText;
+            const totalOtherDeductions = document.getElementById('totalOtherDeductions').innerText;
+
+            createNewPdfReport({
+                netSalary,
+                basicSalary,
+                housingAllowance,
+                transportAllowance,
+                otherAllowances,
+                commissions,
+                totalInsurance,
+                fullGrossSalary,
+                periodGrossSalary,
+                totalOtherDeductions
+            });
+        }
+
+        function removeUnsupportedColors(clonedDocument) {
+            clonedDocument.querySelectorAll('style').forEach(style => {
+                if (style.textContent.includes('oklch(')) {
+                    style.remove();
+                }
+            });
+        }
+
+        function createNewPdfReport(data) {
+            const element = document.createElement('div');
+            const settings = getReportSettings();
+            element.style.cssText = 'display: block; width: 794px; height: 1120px; box-sizing: border-box; margin: 0; padding: 24px 54px; overflow: hidden; background: #ffffff; direction: rtl; page-break-after: avoid;';
+            element.innerHTML = `
+                <style>
+                    * { box-sizing: border-box; }
+                    .header { text-align: center; margin-bottom: 26px; padding: 16px 20px; border: 1px solid ${settings.brandColor}; border-top: 6px solid ${settings.brandColor}; background: #fffdf7; }
+                    .logo { max-width: 70px; max-height: 55px; object-fit: contain; margin-bottom: 5px; }
+                    .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 8px; }
+                    .subtitle { font-family: Arial, sans-serif; font-size: 13px; color: #64748b; }
+                    .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-family: Arial, sans-serif; font-size: 14px; }
+                    .table td { border: 1px solid #cbd5e1; padding: 12px 14px; text-align: right; }
+                    .table th { border: 1px solid #b8c4d1; padding: 13px 14px; background-color: ${settings.tableColor}; color: #1f2937; text-align: right; font-weight: bold; }
+                    .highlight { background-color: #fff9e8; }
+                    .total-row { background-color: #dcefe1; color: #14532d; font-weight: bold; font-size: 17px; }
+                    .footer { text-align: center; font-family: Arial, sans-serif; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+                </style>
+                <div class="header">
+                    ${settings.logoDataUrl ? `<img class="logo" src="${settings.logoDataUrl}" alt="شعار المنشأة">` : ''}
+                    <div class="title">${escapeReportText(settings.reportTitle || 'تقرير حساب الرواتب والتأمينات الاجتماعية')}</div>
+                    ${settings.showCompanyInfo ? `<div style="font-family: Arial, sans-serif; font-size: 15px; font-weight: bold; color: #374151;">${escapeReportText(settings.companyName)}</div><div class="subtitle">${escapeReportText(settings.companySubtitle)}${settings.companyId ? ` | ${escapeReportText(settings.companyId)}` : ''}</div>` : ''}
+                    <div class="subtitle">تاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
+                </div>
+                <table class="table">
+                    <tr>
+                        <th>البيان</th>
+                        <th>المبلغ (ر.س)</th>
+                    </tr>
+                    <tr>
+                        <td>الراتب الأساسي</td>
+                        <td>${data.basicSalary}</td>
+                    </tr>
+                    <tr>
+                        <td>بدل السكن</td>
+                        <td>${data.housingAllowance}</td>
+                    </tr>
+                    <tr>
+                        <td>بدل النقل</td>
+                        <td>${data.transportAllowance}</td>
+                    </tr>
+                    <tr>
+                        <td>البدلات الأخرى</td>
+                        <td>${data.otherAllowances}</td>
+                    </tr>
+                    <tr>
+                        <td>العمولات</td>
+                        <td>${data.commissions}</td>
+                    </tr>
+                    <tr class="highlight">
+                        <td>الراتب الإجمالي الشامل</td>
+                        <td>${data.fullGrossSalary}</td>
+                    </tr>
+                    <tr>
+                        <td>الراتب الإجمالي للفترة</td>
+                        <td>${data.periodGrossSalary}</td>
+                    </tr>
+                    <tr class="highlight">
+                        <td>إجمالي التأمينات (الخصم)</td>
+                        <td>${data.totalInsurance}</td>
+                    </tr>
+                    <tr class="highlight">
+                        <td>الخصومات الأخرى</td>
+                        <td>${data.totalOtherDeductions}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>صافي الراتب المستحق</td>
+                        <td>${data.netSalary}</td>
+                    </tr>
+                </table>
+                <div class="footer">
+                    <p>تم توليد هذا التقرير بواسطة نظام حساب الرواتب والتأمينات الاجتماعية</p>
+                </div>
+            `;
+
+            const opt = {
+                margin: 0,
+                filename: 'تقرير_الراتب_' + new Date().getTime() + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, width: 794, height: 1120, useCORS: true, onclone: removeUnsupportedColors },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+            };
+
+            document.body.appendChild(element);
+            html2pdf().set(opt).from(element).save()
+                .then(() => {
+                    document.getElementById('pdfStatus').innerText = '✓ تم إنشاء التقرير بنجاح وتحميله!';
+                })
+                .catch(error => {
+                    alert('خطأ في إنشاء التقرير: ' + error.message);
+                    document.getElementById('pdfStatus').innerText = '✗ فشل في إنشاء التقرير';
+                })
+                .finally(() => element.remove());
+        }
+    </script>
+</body>
+</html>
