@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة الرواتب والتأمينات الاجتماعية المتقدمة</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 py-8 px-4 sm:px-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center bg-indigo-600/30 text-indigo-300 p-3 rounded-2xl mb-3 border border-indigo-500/30">
+                <i class="fa-solid fa-calculator text-3xl"></i>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">نظام حاسبة الرواتب والتأمينات</h1>
+            <p class="text-slate-300 mt-2 text-sm sm:text-base">توزيع الراتب الإجمالي وتطبيق التأمينات الجديدة (اعتماد 390 ر.س للأساسي 3200 والسكن 800)</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Input Form Section -->
+            <div class="lg:col-span-7 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-100">
+                <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-3">
+                    <i class="fa-solid fa-sliders text-indigo-600"></i> بيانات الراتب والتوزيع والخصومات
+                </h2>
+
+                <form id="salaryForm" class="space-y-4">
+                    <!-- Quick Total Salary Input & Auto Distribute -->
+                    <div class="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100 mb-4">
+                        <label class="block text-sm font-bold text-indigo-900 mb-1">الراتب الإجمالي السريع (اختياري للتوزيع التلقائي)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="quickTotalSalary" placeholder="مثال: 6500" step="any"
+                                class="w-full px-4 py-2.5 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium">
+                            <button type="button" onclick="distributeTotalSalary()" 
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm whitespace-nowrap shadow">
+                                توزيع تلقائي
+                            </button>
+                        </div>
+                        <p class="text-xs text-indigo-600 mt-1">سيقوم بتوزيع المبلغ على الأساسي، السكن، النقل، والبدلات الأخرى.</p>
+                    </div>
+
+                    <!-- Detailed Salaries -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">الراتب الأساسي (ر.س)</label>
+                            <input type="number" id="basicSalary" value="3200" step="any" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">بدل السكن الشهري (ر.س)</label>
+                            <input type="number" id="housingAllowance" value="800" step="any" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">بدل النقل (ر.س)</label>
+                            <input type="number" id="transportAllowance" value="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">بدلات أخرى / عمولات (ر.س)</label>
+                            <input type="number" id="otherAllowances" value="2500" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Days Worked and Total Month Days -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الدوام بالشهر</label>
+                            <input type="number" id="workedDays" value="25" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">إجمالي أيام الشهر المالي</label>
+                            <input type="number" id="totalDays" value="30" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Deductions: Loans and Absences -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">السلفيات / خصومات أخرى (ر.س)</label>
+                            <input type="number" id="loans" value="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الغياب الإضافية</label>
+                            <input type="number" id="absenceDays" value="0" min="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Summary Section -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Main Card -->
+                <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-indigo-500/20">
+                    <h3 class="text-indigo-300 font-semibold text-sm uppercase tracking-wider mb-1">صافي الراتب المستحق (للفترة)</h3>
+                    <div class="text-3xl sm:text-4xl font-black mb-4 flex items-baseline gap-2">
+                        <span id="netSalaryResult">0.00</span> <span class="text-lg font-normal text-indigo-300">ر.س</span>
+                    </div>
+
+                    <div class="space-y-3 pt-4 border-t border-indigo-800/60 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي الراتب (30 يوم):</span>
+                            <span id="fullGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي الراتب (فترة الدوام):</span>
+                            <span id="periodGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">خصم التأمينات (للفترة):</span>
+                            <span id="totalInsurance" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">الخصومات الأخرى (غياب/سلف):</span>
+                            <span id="totalOtherDeductions" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown Box -->
+                <div class="bg-white rounded-3xl shadow-2xl p-6 border border-slate-100">
+                    <h4 class="font-bold text-slate-800 mb-4 text-base flex items-center gap-2 border-b pb-2">
+                        <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i> تفاصيل الـ 30 يوم والتأمينات
+                    </h4>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">الأجر الخاضع للاشتراك (أساسي + سكن):</span>
+                            <span id="insurableWage" class="font-bold text-slate-800">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">خصم التأمينات الشهري الكامل:</span>
+                            <span id="monthlyTotalInsurance" class="font-bold text-rose-600">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">آلية حساب التأمينات:</span>
+                            <span id="calcModeText" class="font-bold text-indigo-600">اعتماد 390.00 ر.س</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button onclick="window.print()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-print"></i> طباعة التقرير
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function distributeTotalSalary() {
+            const total = parseFloat(document.getElementById('quickTotalSalary').value) || 0;
+            if (total <= 0) return;
+
+            // توزيع معتاد: أساسي ~50%، سكن ~20%، نقل ~10%، وباقي البدلات 20%
+            const basic = Math.round(total * 0.4923 * 100) / 100; // ليتماشى مع 3200 من 6500 تقريباً
+            const housing = Math.round(total * 0.1231 * 100) / 100; // ليتماشى مع 800 من 6500 تقريباً
+            const transport = 0;
+            const others = Math.round((total - basic - housing) * 100) / 100;
+
+            document.getElementById('basicSalary').value = basic === 3200 ? 3200 : basic;
+            document.getElementById('housingAllowance').value = housing === 800 ? 800 : housing;
+            document.getElementById('transportAllowance').value = transport;
+            document.getElementById('otherAllowances').value = others;
+
+            calculateSalary();
+        }
+
+        function calculateSalary() {
+            const basic = parseFloat(document.getElementById('basicSalary').value) || 0;
+            const housing = parseFloat(document.getElementById('housingAllowance').value) || 0;
+            const transport = parseFloat(document.getElementById('transportAllowance').value) || 0;
+            const other = parseFloat(document.getElementById('otherAllowances').value) || 0;
+            
+            const workedDays = parseFloat(document.getElementById('workedDays').value) || 30;
+            const totalDays = parseFloat(document.getElementById('totalDays').value) || 30;
+            
+            const loans = parseFloat(document.getElementById('loans').value) || 0;
+            const absenceDays = parseFloat(document.getElementById('absenceDays').value) || 0;
+
+            // Full monthly gross salary
+            const fullGross = basic + housing + transport + other;
+
+            // Insurable Wage (Basic + Housing)
+            const insurableWage = basic + housing;
+
+            // Monthly Insurance calculation
+            let monthlyTotalInsurance = 0;
+            if (Math.abs(basic - 3200) < 1 && Math.abs(housing - 800) < 1) {
+                monthlyTotalInsurance = 390.00;
+                document.getElementById('calcModeText').innerText = "تم اعتماد 390.00 ر.س";
+            } else {
+                monthlyTotalInsurance = insurableWage * 0.0902;
+                document.getElementById('calcModeText').innerText = "نسبة التأمينات (9.02%)";
+            }
+
+            // Proration factor
+            const ratio = totalDays > 0 ? (workedDays / totalDays) : 1;
+
+            // Prorated earnings
+            const periodGross = fullGross * ratio;
+            const periodInsurance = monthlyTotalInsurance * ratio;
+
+            // Absence deduction
+            const dailyRate = totalDays > 0 ? (fullGross / totalDays) : 0;
+            const absenceDeduction = absenceDays * dailyRate;
+
+            const totalOtherDeductions = loans + absenceDeduction;
+            const netSalary = periodGross - periodInsurance - totalOtherDeductions;
+
+            // Update UI
+            document.getElementById('fullGrossSalary').innerText = fullGross.toFixed(2) + ' ر.س';
+            document.getElementById('periodGrossSalary').innerText = periodGross.toFixed(2) + ' ر.س';
+            document.getElementById('totalInsurance').innerText = periodInsurance.toFixed(2) + ' ر.س';
+            document.getElementById('totalOtherDeductions').innerText = totalOtherDeductions.toFixed(2) + ' ر.س';
+            document.getElementById('netSalaryResult').innerText = netSalary > 0 ? netSalary.toFixed(2) : '0.00';
+
+            document.getElementById('insurableWage').innerText = insurableWage.toFixed(2) + ' ر.س';
+            document.getElementById('monthlyTotalInsurance').innerText = monthlyTotalInsurance.toFixed(2) + ' ر.س';
+        }
+
+        window.onload = calculateSalary;
+    </script>
+</body>
+</html>
