@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة الرواتب والتأمينات الاجتماعية المتقدمة</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableReport, #printableReport * {
+                visibility: visible;
+            }
+            #printableReport {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen text-slate-800 py-8 px-4 sm:px-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center bg-indigo-600/30 text-indigo-300 p-3 rounded-2xl mb-3 border border-indigo-500/30">
+                <i class="fa-solid fa-calculator text-3xl"></i>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">نظام حاسبة الرواتب والتأمينات</h1>
+            <p class="text-slate-300 mt-2 text-sm sm:text-base">توزيع الراتب الإجمالي تلقائياً واحتساب التأمينات الاجتماعية والخصومات بدقة</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Input Form Section -->
+            <div class="lg:col-span-7 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-100">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-600"></i> التفاصيل المالية والراتب
+                    </h2>
+                    <!-- Toggle New System - Default Checked & 9.75% -->
+                    <label class="flex items-center cursor-pointer gap-2.5 bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-100 shadow-sm">
+                        <input type="checkbox" id="newSystemToggle" checked disabled class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-not-allowed">
+                        <span class="text-xs font-bold text-indigo-900">تطبيق نظام التأمينات (9.75%)</span>
+                    </label>
+                </div>
+
+                <form id="salaryForm" class="space-y-4">
+                    <!-- Quick Total Salary Input & Auto Distribute -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الراتب الإجمالي (توزيع تلقائي)</label>
+                        <div class="relative">
+                            <input type="number" id="quickTotalSalary" value="6000" step="any" oninput="distributeTotalSalary()"
+                                class="w-full px-4 py-3.5 bg-white border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-xl tracking-wide">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 font-bold">ريال</span>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Salaries Row -->
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">الراتب الأساسي</label>
+                            <input type="number" id="basicSalary" step="any" oninput="calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">بدل السكن</label>
+                            <input type="number" id="housingAllowance" step="any" oninput="calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">بدل النقل</label>
+                            <input type="number" id="transportAllowance" step="any" oninput="calculateSalary()"
+                                class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-semibold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-rose-600 mb-1">خصم التأمينات (GOSI)</label>
+                            <input type="text" id="insuranceDisplay" readonly
+                                class="w-full px-3 py-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl outline-none font-bold text-sm text-center">
+                        </div>
+                    </div>
+
+                    <!-- Days Worked and Total Month Days -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الدوام بالشهر</label>
+                            <input type="number" id="workedDays" value="30" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">إجمالي أيام الشهر المالي</label>
+                            <input type="number" id="totalDays" value="30" min="1" max="31" required oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Deductions: Loans and Absences -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">السلفيات / خصومات أخرى (ر.س)</label>
+                            <input type="number" id="loans" value="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">أيام الغياب الإضافية</label>
+                            <input type="number" id="absenceDays" value="0" min="0" step="any" oninput="calculateSalary()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Summary Section -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Main Card -->
+                <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-indigo-500/20">
+                    <h3 class="text-indigo-300 font-semibold text-sm uppercase tracking-wider mb-1">صافي الراتب المستحق</h3>
+                    <div class="text-3xl sm:text-4xl font-black mb-4 flex items-baseline gap-2">
+                        <span id="netSalaryResult">0.00</span> <span class="text-lg font-normal text-indigo-300">ر.س</span>
+                    </div>
+
+                    <div class="space-y-3 pt-4 border-t border-indigo-800/60 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي الراتب الشامل:</span>
+                            <span id="fullGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">الراتب الإجمالي للفترة:</span>
+                            <span id="periodGrossSalary" class="font-bold text-white">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">إجمالي التأمينات (الخصم):</span>
+                            <span id="totalInsurance" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-300">الخصومات الأخرى (غياب/سلف):</span>
+                            <span id="totalOtherDeductions" class="font-bold text-rose-400">0.00 ر.س</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown Box -->
+                <div class="bg-white rounded-3xl shadow-2xl p-6 border border-slate-100">
+                    <h4 class="font-bold text-slate-800 mb-4 text-base flex items-center gap-2 border-b pb-2">
+                        <i class="fa-solid fa-file-invoice-dollar text-indigo-600"></i> تفاصيل الاشتراكات والأجر الخاضع
+                    </h4>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">الأجر الخاضع للاشتراك (أساسي + سكن):</span>
+                            <span id="insurableWage" class="font-bold text-slate-800">0.00 ر.س</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl">
+                            <span class="text-slate-600">نسبة التأمينات الإجمالية (9.75%):</span>
+                            <span id="pensionShare" class="font-bold text-indigo-600">0.00 ر.س</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button onclick="generatePrintableReport()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-md">
+                            <i class="fa-solid fa-print"></i> طباعة تقرير الراتب المفصل
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Hidden Printable Report Template -->
+    <div id="printableReport" class="hidden">
+        <div style="max-width: 800px; margin: auto; font-family: 'Cairo', Arial, sans-serif; direction: rtl; color: #1e293b; padding: 30px; border: 1px solid #cbd5e1; border-radius: 12px;">
+            <div style="text-align: center; border-bottom: 2px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px;">
+                <h2 style="margin: 0; color: #1e1b4b; font-size: 24px;">تقرير مسير الراتب الشهري</h2>
+                <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">بيان تفصيلي بالمستحقات المالية والخصومات والتأمينات الاجتماعية (النظام الجديد 9.75%)</p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; background: #f8fafc; padding: 12px; border-radius: 8px;">
+                <div><strong>تاريخ الإصدار:</strong> <span id="reportDate"></span></div>
+                <div><strong>الحالة:</strong> معتمد للصرف</div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px;">
+                <thead>
+                    <tr style="background-color: #4f46e5; color: white;">
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">البند المالي</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">القيمة (ر.س)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #cbd5e1;">الراتب الأساسي</td>
+                        <td id="repBasic" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">0.00</td>
+                    </tr>
+                    <tr style="background: #f8fafc;">
+                        <td style="padding: 10px; border: 1px solid #cbd5e1;">بدل السكن</td>
+                        <td id="repHousing" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #cbd5e1;">بدل النقل</td>
+                        <td id="repTransport" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">0.00</td>
+                    </tr>
+                    <tr style="background: #f8fafc; font-weight: bold;">
+                        <td style="padding: 10px; border: 1px solid #cbd5e1;">إجمالي الراتب الشامل</td>
+                        <td id="repGross" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #cbd5e1; color: #dc2626;">خصم التأمينات الاجتماعية (9.75%)</td>
+                        <td id="repInsurance" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #dc2626;">0.00</td>
+                    </tr>
+                    <tr style="background: #f8fafc;">
+                        <td style="padding: 10px; border: 1px solid #cbd5e1; color: #dc2626;">الخصومات الأخرى (سلف / غياب)</td>
+                        <td id="repDeductions" style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; color: #dc2626;">0.00</td>
+                    </tr>
+                    <tr style="background-color: #1e1b4b; color: white; font-weight: bold; font-size: 16px;">
+                        <td style="padding: 12px; border: 1px solid #1e1b4b;">صافي الراتب المستحق</td>
+                        <td id="repNet" style="padding: 12px; border: 1px solid #1e1b4b; text-align: left;">0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; text-align: center; font-size: 14px;">
+                <div>
+                    <p><strong>توقيع الموظف</strong></p>
+                    <br><br>
+                    <p>.......................................</p>
+                </div>
+                <div>
+                    <p><strong>اعتمد الإدارة / الموارد البشرية</strong></p>
+                    <br><br>
+                    <p>.......................................</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function distributeTotalSalary() {
+            const total = parseFloat(document.getElementById('quickTotalSalary').value) || 0;
+            if (total <= 0) return;
+
+            const basic = Math.round(total * 0.7408 * 10) / 10;
+            const housing = Math.round(total * 0.1852 * 10) / 10;
+            const transport = Math.round((total - basic - housing) * 100) / 100;
+
+            document.getElementById('basicSalary').value = basic;
+            document.getElementById('housingAllowance').value = housing;
+            document.getElementById('transportAllowance').value = transport > 0 ? transport : 0;
+
+            calculateSalary();
+        }
+
+        let currentResults = {};
+
+        function calculateSalary() {
+            const basic = parseFloat(document.getElementById('basicSalary').value) || 0;
+            const housing = parseFloat(document.getElementById('housingAllowance').value) || 0;
+            const transport = parseFloat(document.getElementById('transportAllowance').value) || 0;
+            
+            const workedDays = parseFloat(document.getElementById('workedDays').value) || 30;
+            const totalDays = parseFloat(document.getElementById('totalDays').value) || 30;
+            
+            const loans = parseFloat(document.getElementById('loans').value) || 0;
+            const absenceDays = parseFloat(document.getElementById('absenceDays').value) || 0;
+
+            const fullGross = basic + housing + transport;
+            const insurableWage = basic + housing;
+
+            // نظام التأمينات الجديد معتمد بنسبة 9.75% تلقائياً
+            const monthlyInsurance = insurableWage * 0.0975;
+
+            const ratio = totalDays > 0 ? (workedDays / totalDays) : 1;
+            const periodGross = fullGross * ratio;
+            const periodInsurance = monthlyInsurance * ratio;
+
+            const dailyRate = totalDays > 0 ? (fullGross / totalDays) : 0;
+            const absenceDeduction = absenceDays * dailyRate;
+
+            const totalOtherDeductions = loans + absenceDeduction;
+            const netSalary = periodGross - periodInsurance - totalOtherDeductions;
+
+            // Save for printing report
+            currentResults = {
+                basic: basic.toFixed(2),
+                housing: housing.toFixed(2),
+                transport: transport.toFixed(2),
+                fullGross: fullGross.toFixed(2),
+                insurance: periodInsurance.toFixed(2),
+                otherDeductions: totalOtherDeductions.toFixed(2),
+                net: netSalary > 0 ? netSalary.toFixed(2) : '0.00',
+                insurable: insurableWage.toFixed(2)
+            };
+
+            // Update UI
+            document.getElementById('insuranceDisplay').value = monthlyInsurance.toFixed(2) + ' ر.س';
+            document.getElementById('fullGrossSalary').innerText = fullGross.toFixed(2) + ' ر.س';
+            document.getElementById('periodGrossSalary').innerText = periodPeriodGross = periodGross.toFixed(2) + ' ر.س';
+            document.getElementById('periodGrossSalary').innerText = periodGross.toFixed(2) + ' ر.س';
+            document.getElementById('totalInsurance').innerText = periodInsurance.toFixed(2) + ' ر.س';
+            document.getElementById('totalOtherDeductions').innerText = totalOtherDeductions.toFixed(2) + ' ر.س';
+            document.getElementById('netSalaryResult').innerText = netSalary > 0 ? netSalary.toFixed(2) : '0.00';
+
+            document.getElementById('insurableWage').innerText = insurableWage.toFixed(2) + ' ر.س';
+            document.getElementById('pensionShare').innerText = periodInsurance.toFixed(2) + ' ر.س';
+        }
+
+        function generatePrintableReport() {
+            document.getElementById('repBasic').innerText = currentResults.basic + ' ر.س';
+            document.getElementById('repHousing').innerText = currentResults.housing + ' ر.س';
+            document.getElementById('repTransport').innerText = currentResults.transport + ' ر.س';
+            document.getElementById('repGross').innerText = currentResults.fullGross + ' ر.س';
+            document.getElementById('repInsurance').innerText = '-' + currentResults.insurance + ' ر.س';
+            document.getElementById('repDeductions').innerText = '-' + currentResults.otherDeductions + ' ر.س';
+            document.getElementById('repNet').innerText = currentResults.net + ' ر.س';
+            
+            const options = { year: 'numeric', month: 'numeric', day: 'numeric' };
+            document.getElementById('reportDate').innerText = new Date().toLocaleDateString('ar-SA', options);
+
+            const reportElement = document.getElementById('printableReport');
+            reportElement.style.display = 'block';
+            window.print();
+            reportElement.style.display = 'none';
+        }
+
+        window.onload = function() {
+            distributeTotalSalary();
+        };
+    </script>
+</body>
+</html>
